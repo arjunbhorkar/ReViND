@@ -178,7 +178,7 @@ class ImageDataset(Dataset):
 
                     end = min(
                         len(traj) - 3,
-                        random.randint(traji[1] + 1, traji[1] + 50))
+                        random.randint(traji[1] + 10, traji[1] + 50))
 
                     if end == traji[1] + 1:
                         mask.append(0)
