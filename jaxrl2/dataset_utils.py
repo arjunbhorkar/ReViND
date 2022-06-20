@@ -82,31 +82,6 @@ def euc2polar(curr, goal, rot):
     return np.array([np.sin(phi), np.cos(phi), rho])
 
 
-def sample_goal_norm(meand, meana, stdd, stda):
-
-    distsamp = max(np.random.normal(meand, stdd), 1)
-
-    return [np.random.normal(meana, stda), distsamp]
-
-
-def resize_image(image, scale_down):
-    curr_shape = image.shape
-    new_shape = (int(curr_shape[0] / scale_down),
-                 int(curr_shape[1] / scale_down))
-    new_img = cv2.resize(image, new_shape, interpolation=cv2.INTER_AREA)
-
-    return new_img
-
-
-def rewardf(pos, goal, collision=False):
-    pos[2] = 0
-    goal[2] = 0
-    a = 0
-    if collision:
-        a = -100 / (1 - 0.99)
-    return -np.linalg.norm(pos - goal)
-
-
 class Dataset(object):
 
     def __init__(self, observations: np.ndarray, actions: np.ndarray,
@@ -190,7 +165,7 @@ class ImageDataset(Dataset):
                     nextpt = traj[traji[1] + 1]
 
                     r = -1 + (0.75 *
-                              grass_detector(self.image_observations[i]))
+                              sunny_detector(self.image_observations[i]))
                     currpolar = euc2polar(currpt, goalpt, rot)
                     nextpolar = euc2polar(nextpt, goalpt, nextrot)
 
