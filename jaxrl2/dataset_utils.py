@@ -176,7 +176,6 @@ class ImageDataset(Dataset):
                     rot = self.trajs[traji[0]][1][traji[1]]
                     nextrot = self.trajs[traji[0]][1][traji[1] + 1]
 
-                    print(traji[1])
                     end = min(
                         len(traj) - 3,
                         random.randint(traji[1] + 1, traji[1] + 50))
