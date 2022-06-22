@@ -4,6 +4,8 @@ This is the code submission for the corresponding CORL submission 'ReViND'.
 
 ## Code used for the various reward schemes ##
 
+(The following code can be found in dataset_utils.py in the jaxrl2 folder)
+
 ### Sunny Detector ###
 
 <details><summary> Sunny Detector </summary>
@@ -72,6 +74,9 @@ def grass_detector(img):
 </details>
 
 ## How Datasets are created for training ##
+
+(The following code can be found in dataset_utils.py in the jaxrl2 folder)
+
 
 Pickled dataset (converted from native hdf5 files) of trajectories is loaded in (dataset of trajectories picked for specific reward scheme)
 
