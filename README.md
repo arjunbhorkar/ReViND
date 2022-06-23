@@ -6,8 +6,6 @@ This is the code submission for the corresponding CORL submission 'ReViND'.
 
 (The following code can be found in dataset_utils.py in the jaxrl2 folder)
 
-### Sunny Detector ###
-
 <details><summary> Sunny Detector </summary>
 <p>
 
