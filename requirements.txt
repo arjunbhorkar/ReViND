@@ -15,15 +15,6 @@ cycler==0.11.0
 debugpy @ file:///tmp/build/80754af9/debugpy_1637091796427/work
 decorator @ file:///opt/conda/conda-bld/decorator_1643638310831/work
 distrax==0.1.1
-dm-control==0.0.425341097
-dm-env==1.5
-dm-robotics-agentflow==0.3.0
-dm-robotics-controllers==0.3.0
-dm-robotics-geometry==0.3.0
-dm-robotics-manipulation==0.3.0
-dm-robotics-moma==0.3.0
-dm-robotics-transformations==0.3.0
-dm-tree==0.1.6
 entrypoints @ file:///tmp/build/80754af9/entrypoints_1649926445639/work
 executing @ file:///opt/conda/conda-bld/executing_1646925071911/work
 filelock==3.4.2
@@ -56,7 +47,6 @@ jupyter-core @ file:///opt/conda/conda-bld/jupyter_core_1651671229925/work
 keras==2.7.0
 Keras-Preprocessing==1.1.2
 kiwisolver==1.3.2
-labmaze==1.0.5
 libclang==12.0.0
 lxml==4.8.0
 Markdown==3.3.6
