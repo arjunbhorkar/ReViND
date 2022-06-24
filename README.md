@@ -1,10 +1,23 @@
-# ReViND
+# ReViND (Submission for CORL 2022)
 
 This is the code submission for the corresponding CORL submission 'ReViND'.
 
+## Installation
+
+Run
+```bash
+# Install all the requirements from requirements.txt
+
+# To process raw RECON data into required pkl format
+python hdf2pkl.py
+
+# To train the model
+python train_offline_recon.py
+```
+
 ## Code used for the various reward schemes ##
 
-(The following code can be found in dataset_utils.py in the jaxrl2 folder)
+(The following code can be found in `dataset_utils.py` in the jaxrl2 folder)
 
 <details><summary> Sunny Detector </summary>
 <p>
@@ -73,52 +86,55 @@ def grass_detector(img):
 
 ## How Datasets are created for training ##
 
-(The following code can be found in dataset_utils.py in the jaxrl2 folder)
+(The following code can be found in `dataset_utils.py` in the jaxrl2 folder)
 
 
-Pickled dataset (converted from native hdf5 files) of trajectories is loaded in (dataset of trajectories picked for specific reward scheme)
+Our method for sampling goals from the generated pkl and labelling the rewards
 
-<details><summary> Loading pickled trajectories </summary>
+<details><summary> Goal sampling and reward labelling </summary>
 <p>
 
 ```python
-if isdir:
-    print("Loading data from dir")
-    with open(dir, 'rb') as f:
-        trajectories = pickle.load(f)
-    print("loaded data")
+for i in indx:
+    if self.dones_float[i] == 1:
+        r = 0
+        currobs.append(self.observations[i])
+        nextobs.append(self.next_observations[i])
+        reward.append(r)
+        mask.append(0)
 
     else:
-        trajectories = dir
+        traji = self.traj_index[i]
+        traj = self.trajs[traji[0]][0]
+
+        rot = self.trajs[traji[0]][1][traji[1]]
+        nextrot = self.trajs[traji[0]][1][traji[1] + 1]
+
+        end = min(
+            len(traj) - 3,
+            random.randint(traji[1] + 10, traji[1] + 50))
+
+        if end == traji[1] + 1:
+            mask.append(0)
+        else:
+            mask.append(1)
+
+        goalpt = traj[end]
+        currpt = traj[traji[1]]
+        nextpt = traj[traji[1] + 1]
+
+        r = -1 + (0.75 *
+                  sunny_detector(self.image_observations[i]))
+        currpolar = euc2polar(currpt, goalpt, rot)
+        nextpolar = euc2polar(nextpt, goalpt, nextrot)
+
+        currobs.append(np.array(currpolar))
+        nextobs.append(np.array(nextpolar))
+        reward.append(r)
 ```
 </p>
 </details>
 
-Example of assignment of the rewards to trajectories (grassy example):
-
-**Description:** (Fill in)
-
-<details><summary> Assignment of rewards for grassy example </summary>
-<p>
-
-```python
-for val in range(len(dataset['terminals'])):
-    if dataset['terminals'][val] == 1:
-        self.distreward.append(-1)
-        self.brightreward.append(
-            (0.5 * grass_detector(trajectories["image"][val])))
-
-        dataset['rewards'].append(0)
-    else:
-        self.distreward.append(-1)
-        self.brightreward.append(
-            (0.5 * grass_detector(trajectories["image"][val])))
-
-        r = -1 + (0.75 * grass_detector(trajectories["image"][val]))
-        dataset['rewards'].append(r)
-```
-</p>
-</details>
 
 
 
