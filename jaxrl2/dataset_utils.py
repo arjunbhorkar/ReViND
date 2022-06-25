@@ -196,9 +196,9 @@ class ImageDataset(Dataset):
                         c='green')
                     plt.imshow(self.image_observations[i])
                     name = f'traj_im{i}.png'
-                    os.makedirs('/home/arjunbhorkar/datacaps', exist_ok=True)
+                    os.makedirs('/home/anonuser/datacaps', exist_ok=True) ## TODO: change this
                     plt.savefig(
-                        os.path.join('/home/arjunbhorkar/datacaps', name))
+                        os.path.join('/home/anonuser/datacaps', name)) ## TODO: change this
 
             return ImageBatch(
                 observations=self.observations[indx],
