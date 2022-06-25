@@ -1,6 +1,6 @@
 # ReViND (Submission for CORL 2022)
 
-This is the code submission for the corresponding CORL submission 'ReViND'.
+This is the code submission for the corresponding CoRL 2022 submission 'ReViND'.
 
 ## Installation
 
