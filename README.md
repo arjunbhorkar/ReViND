@@ -8,10 +8,10 @@ Run
 ```bash
 # Install all the requirements from requirements.txt
 
-# To process raw RECON data into required pkl format
+# To process raw RECON data into required pkl format - put raw recon data in the relative folder ../recon_release
 python hdf2pkl.py
 
-# To train the model
+# To train the model - edit new_dir to the directory of your stored pkl file
 python train_offline_recon.py
 ```
 
