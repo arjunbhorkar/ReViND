@@ -40,7 +40,7 @@ def main(_):
 
     images_file_path = f'./{FLAGS.exp_dir}/recon_graphs_waypoints/' + name + '/'
 
-    new_dir = "/nfs/kun2/users/arjun/recon_dataset/recon_datavis/pklher3/traj_train.pkl"
+    new_dir = "/nfs/kun2/users/anon/recon_dataset/recon_datavis/pklher3/traj_train.pkl"
     print("Using training dataset: ", new_dir)
 
     dataset1 = ReconImageDataset(new_dir, isher=True)
