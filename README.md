@@ -84,7 +84,7 @@ def grass_detector(img):
 </p>
 </details>
 
-## How Datasets are created for training ##
+## Processing the dataset for training ##
 
 (The following code can be found in `dataset_utils.py` in the jaxrl2 folder)
 
