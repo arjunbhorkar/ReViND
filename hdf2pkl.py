@@ -163,8 +163,7 @@ def main(_):
 
         traj_index = 0
 
-        # for i in tqdm.tqdm(range(len(hdf5_names))):
-        for i in tqdm.tqdm(range(5)):
+        for i in tqdm.tqdm(range(len(hdf5_names))):
             print("Using file:", hdf5_names[i])
             curr_hdf5 = None
             try:
