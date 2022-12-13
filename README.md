@@ -11,7 +11,7 @@ Run
 # To process raw RECON data into required pkl format - set flag to location of recon_release
 python hdf2pkl.py --recon_dataset='/path/to/RECON/dataset/'
 
-# To train the model - edit new_dir to the directory of your stored pkl file
+# To train the model
 python train_offline_recon.py
 ```
 
