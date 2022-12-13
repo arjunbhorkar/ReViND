@@ -1,14 +1,15 @@
-from typing import Dict
 import os
+import warnings
+from typing import Dict
+
+import cv2
 import flax.linen as nn
 import gym
-import numpy as np
-import cv2
 import matplotlib.pyplot as plt
-import jaxrl2.np_utils as np_utils
+import numpy as np
 from matplotlib import image
-# from jaxrl2.dataset_utils import MujImageDataset, ImageBatch, ConcatImgDataset, ReconImageDataset
-import warnings
+
+import jaxrl2.np_utils as np_utils
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
@@ -67,7 +68,7 @@ def evaluate(agent, batch, dir, istraj=True) -> Dict[str, float]:
 
         actual_waypoints = batch.actions[i]
 
-        if istraj and i % 250 == 0:
+        if istraj:
             pred = []
             actual = []
             for j in range(0, len(pred_action), 2):

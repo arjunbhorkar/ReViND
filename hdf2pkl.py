@@ -1,43 +1,21 @@
-from cgitb import small
-from turtle import color
-import h5py
-import pickle
-import argparse
-from PIL import Image
-import numpy as np
-import np_utils
-import time
 import os
-import matplotlib.pyplot as plt
-import cv2
-import tqdm
+import pickle
 import random
-from recon_datavis.utils import get_files_ending_with, bytes2im
 
+import cv2
+import h5py
+import numpy as np
+import tqdm
+from absl import app, flags
 
-FOLDER = "../recon_release/"
-save_folder = 'pklher3'
-hdf5_fnames = get_files_ending_with(FOLDER, '.hdf5')
-random.shuffle(hdf5_fnames)
+import jaxrl2.np_utils as np_utils
+from jaxrl2.np_utils import bytes2im, get_files_ending_with
 
-names1 = []
-names2 = []
+FLAGS = flags.FLAGS
+flags.DEFINE_string('recon_dataset', "../recon_release/", 'Location of RECON Dataset')
+flags.DEFINE_string('save_dir', 'datasets', 'Directory to save procd. data')
 
-mid = int(len(hdf5_fnames) * 0.75)
-
-for s1 in range(mid):
-    names1.append(hdf5_fnames[s1])
-
-for s2 in range(mid, len(hdf5_fnames)):
-    names2.append(hdf5_fnames[s2])
-
-STATE_TOPICS = []
-image_topics = []
-angles = []
-distances = []
-
-pkl_count = 0
-collision_horizon = 2
+COLLISION_HORIZON = 2
 
 def reward(pos, goal, collision = False):
         pos[2] = 0
@@ -103,10 +81,6 @@ def pos2actions(pos, rotations):
     return actions
 
 def project_points(xy):
-    """
-    :param xy: [batch_size, horizon, 2]
-    :return: [batch_size, horizon, 2]
-    """
     batch_size, horizon, _ = xy.shape
     fx, fy, cx, cy = 272.547000, 266.358000, 320.000000, 220.000000
     # camera is ~0.35m above ground
@@ -127,7 +101,7 @@ def project_points(xy):
     return uv
 
 
-def euc2polar(curr, goal, rot):
+def euc2polar(curr, goal, rot, angles, distances):
     curr = np.array(curr[:2])
     goal = np.array(goal[:2])
     total = np.array([curr, goal, goal])
@@ -149,224 +123,130 @@ def sample_goal_norm(angles, dist):
     distsamp = max(np.random.normal(meand, vard), 1)
     return [np.random.normal(meana, vara), distsamp]
 
-def sample_many(mean, std, name):
-    l = []
-    for i in range(10000):
-        l.append(np.random.normal(mean, std))
-    plt.clf()
-    plt.hist(l, bins=100)
-    plt.savefig(f"./distribution/curr{name}_{len(l)}.png")
 
-data = dict(states=[],
-            actions=[],
-            next_states=[],
-            trajectory=[],
-            traj_index=[],
-            iscoll=[],
-            rewards=[],
-            dones=[],
-            image=[],
-            next_image=[],
-            spawngoal=[],
-            colldmean=0.0,
-            colldstd=0.0,
-            collamean=0.0,
-            collastd=0.0)
+def main(_):
+    FOLDER = FLAGS.recon_dataset
+    save_folder = FLAGS.save_dir 
+    hdf5_fnames = get_files_ending_with(FOLDER, '.hdf5')
+    random.shuffle(hdf5_fnames)
 
-traj_index = 0
+    names1 = []
+    names2 = []
+    mid = int(len(hdf5_fnames) * 0.75)
+    for s1 in range(mid):
+        names1.append(hdf5_fnames[s1])
+    for s2 in range(mid, len(hdf5_fnames)):
+        names2.append(hdf5_fnames[s2])
+    name_dict = {'train': names1, 'test': names2}
 
-for i in tqdm.tqdm(range(100)):
-    print("Using file:", names1[i])
-    curr_hdf5 = None
-    try:
-        curr_hdf5 = h5py.File(names1[i], 'r')
-    except OSError:
-        print("Coulndt open this hdf5")
-        continue
-    full_len = len(curr_hdf5['collision/any'])
+    for k, v in name_dict.items():
+        file_name = k
+        hdf5_names = v
 
-    if full_len < 30:
-        continue
-    print("Using full lenght :", full_len)
+        angles = []
+        distances = []
 
-    points = curr_hdf5['jackal/position']
-    rotations = curr_hdf5['jackal/yaw']
-    images = curr_hdf5['images/rgb_left']
-    collisions = curr_hdf5['collision/physical']
+        data = dict(states=[],
+                    actions=[],
+                    next_states=[],
+                    trajectory=[],
+                    traj_index=[],
+                    iscoll=[],
+                    dones=[],
+                    image=[],
+                    next_image=[],
+                    spawngoal=[],
+                    colldmean=0.0,
+                    colldstd=0.0,
+                    collamean=0.0,
+                    collastd=0.0)
 
-    data['trajectory'].append([points[:full_len], rotations[:full_len]])
+        traj_index = 0
 
-    for j in range(0, full_len-1):
-        goal_step = np.random.randint(0, 30)
-        end = min(j+goal_step, full_len-1)
+        # for i in tqdm.tqdm(range(len(hdf5_names))):
+        for i in tqdm.tqdm(range(5)):
+            print("Using file:", hdf5_names[i])
+            curr_hdf5 = None
+            try:
+                curr_hdf5 = h5py.File(hdf5_names[i], 'r')
+            except OSError:
+                print("Coulndt open this hdf5")
+                continue
+            full_len = len(curr_hdf5['collision/any'])
 
-        startpt = points[j]
-        startrot = rotations[j]
-        goalpt = points[end]
-        goalyaw = rotations[end]
+            if full_len < 30:
+                continue
+            print("Using full lenght :", full_len)
 
-        actions = []
+            points = curr_hdf5['jackal/position']
+            rotations = curr_hdf5['jackal/yaw']
+            images = curr_hdf5['images/rgb_left']
+            collisions = curr_hdf5['collision/physical']
 
-        if any([collisions[k] for k in range(j, min(j+collision_horizon, full_len))]):
-            goal_angle, goal_dist = sample_goal_norm(angles, distances)
-            r = -goal_dist - (100/(1-0.99))
-            
-            currpolar = np.array([np.sin(goal_angle), np.cos(goal_angle), goal_dist])
-            nextpolar = np.array([np.sin(goal_angle), np.cos(goal_angle), goal_dist])
-            
-            data["states"].append(np.array(currpolar))
-            data["next_states"].append(np.array(nextpolar))
-            data["rewards"].append(r)
-            data["dones"].append(1)
-            data["traj_index"].append([traj_index, j])
-            print(traj_index)
-            data["iscoll"].append(True)
-            data["image"].append(rectify_and_resize(bytes2im(images[j]), (48, 64, 3), False))
-            data["next_image"].append(rectify_and_resize(bytes2im(images[j]), (48, 64, 3), False))
+            data['trajectory'].append([points[:full_len], rotations[:full_len]])
 
-        else:
-            r = reward(points[j], goalpt)
-            currpolar = euc2polar(points[j], goalpt, rotations[j])
-            nextpolar = euc2polar(points[j+1], goalpt, rotations[j+1])
-            
-            data["states"].append(np.array(currpolar))
-            data["next_states"].append(np.array(nextpolar))
-            data["rewards"].append(r)
-            if goal_step < 2:
-                dns = 1
-            else:
-                dns = 0
-            data["dones"].append(dns)
-            data["traj_index"].append([traj_index, j])
-            data["iscoll"].append(False)
-            data["image"].append(rectify_and_resize(bytes2im(images[j]), (48, 64, 3), False))
-            data["next_image"].append(rectify_and_resize(bytes2im(images[j+1]), (48, 64, 3), False))
+            for j in range(0, full_len-1):
+                goal_step = np.random.randint(0, 30)
+                end = min(j+goal_step, full_len-1)
 
-        actions = pos2actions(list(points[j:end+1]), list(rotations[j:end+1]))
+                startpt = points[j]
+                startrot = rotations[j]
+                goalpt = points[end]
+                goalyaw = rotations[end]
 
-        for l in range(len(actions)):
+                actions = []
 
-            data['actions'].append(np.copy(actions[l]))
+                if any([collisions[k] for k in range(j, min(j+COLLISION_HORIZON, full_len))]):
+                    goal_angle, goal_dist = sample_goal_norm(angles, distances)
+                    
+                    currpolar = np.array([np.sin(goal_angle), np.cos(goal_angle), goal_dist])
+                    nextpolar = np.array([np.sin(goal_angle), np.cos(goal_angle), goal_dist])
+                    
+                    data["states"].append(np.array(currpolar))
+                    data["next_states"].append(np.array(nextpolar))
+                    data["dones"].append(1)
+                    data["traj_index"].append([traj_index, j])
+                    data["iscoll"].append(True)
+                    data["image"].append(rectify_and_resize(bytes2im(images[j]), (48, 64, 3), False))
+                    data["next_image"].append(rectify_and_resize(bytes2im(images[j]), (48, 64, 3), False))
 
-    traj_index += 1
+                else:
+                    currpolar = euc2polar(points[j], goalpt, rotations[j], angles, distances)
+                    nextpolar = euc2polar(points[j+1], goalpt, rotations[j+1], angles, distances)
+                    
+                    data["states"].append(np.array(currpolar))
+                    data["next_states"].append(np.array(nextpolar))
+                    if goal_step < 2:
+                        dns = 1
+                    else:
+                        dns = 0
+                    data["dones"].append(dns)
+                    data["traj_index"].append([traj_index, j])
+                    data["iscoll"].append(False)
+                    data["image"].append(rectify_and_resize(bytes2im(images[j]), (48, 64, 3), False))
+                    data["next_image"].append(rectify_and_resize(bytes2im(images[j+1]), (48, 64, 3), False))
 
-    print(traj_index, len(data['trajectory']))
+                actions = pos2actions(list(points[j:end+1]), list(rotations[j:end+1]))
 
-data['colldmean'] = np.mean(distances)
-data['colldstd'] = np.sqrt(np.var(distances))
-data['collamean'] = np.mean(angles)
-data['collastd'] = np.sqrt(np.var(angles))
-        
-print("Total len is", len(data["states"]))
-os.makedirs(save_folder, exist_ok=True)
+                for l in range(len(actions)):
+                    data['actions'].append(np.copy(actions[l]))
 
-save_file = os.path.join(save_folder, 'traj_train' + '.pkl')
-with open(save_file, 'wb') as f:
-    pickle.dump(data, f)
+            traj_index += 1
+
+            print(traj_index, len(data['trajectory']))
+
+        data['colldmean'] = np.mean(distances)
+        data['colldstd'] = np.sqrt(np.var(distances))
+        data['collamean'] = np.mean(angles)
+        data['collastd'] = np.sqrt(np.var(angles))
+                
+        print("Total len is", len(data["states"]))
+        os.makedirs(save_folder, exist_ok=True)
+
+        save_file = os.path.join(save_folder, file_name + '.pkl')
+        with open(save_file, 'wb') as f:
+            pickle.dump(data, f)
 
 
-
-data = dict(states=[],
-            actions=[],
-            next_states=[],
-            trajectory=[],
-            traj_index=[],
-            iscoll=[],
-            rewards=[],
-            dones=[],
-            image=[],
-            next_image=[],
-            spawngoal=[],
-            colldmean=0.0,
-            colldstd=0.0,
-            collamean=0.0,
-            collastd=0.0)
-
-traj_index = 0
-
-for i in tqdm.tqdm(range(len(names2))):
-    print("Using file:", names2[i])
-    curr_hdf5 = None
-    try:
-        curr_hdf5 = h5py.File(names2[i], 'r')
-    except OSError:
-        print("Coulndt open this hdf5")
-        continue
-    full_len = len(curr_hdf5['collision/any'])
-
-    if full_len < 30:
-        continue
-    print("Using full lenght :", full_len)
-
-    points = curr_hdf5['jackal/position']
-    rotations = curr_hdf5['jackal/yaw']
-    images = curr_hdf5['images/rgb_left']
-    collisions = curr_hdf5['collision/physical']
-
-    data['trajectory'].append([points[:full_len], rotations[:full_len]])
-
-    for j in range(0, full_len-1):
-        goal_step = np.random.randint(0, 30)
-        end = min(j+goal_step, full_len-1)
-
-        startpt = points[j]
-        startrot = rotations[j]
-        goalpt = points[end]
-        goalyaw = rotations[end]
-
-        actions = []
-
-        if any([collisions[k] for k in range(j, min(j+collision_horizon, full_len))]):
-            goal_angle, goal_dist = sample_goal_norm(angles, distances)
-            r = -goal_dist - (100/(1-0.99))
-            
-            currpolar = np.array([np.sin(goal_angle), np.cos(goal_angle), goal_dist])
-            nextpolar = np.array([np.sin(goal_angle), np.cos(goal_angle), goal_dist])
-            
-            data["states"].append(np.array(currpolar))
-            data["next_states"].append(np.array(nextpolar))
-            data["rewards"].append(r)
-            data["dones"].append(1)
-            data["traj_index"].append([traj_index, j])
-            print(traj_index)
-            data["iscoll"].append(True)
-            data["image"].append(rectify_and_resize(bytes2im(images[j]), (48, 64, 3), False))
-            data["next_image"].append(rectify_and_resize(bytes2im(images[j]), (48, 64, 3), False))
-
-        else:
-            r = reward(points[j], goalpt)
-            currpolar = euc2polar(points[j], goalpt, rotations[j])
-            nextpolar = euc2polar(points[j+1], goalpt, rotations[j+1])
-            
-            data["states"].append(np.array(currpolar))
-            data["next_states"].append(np.array(nextpolar))
-            data["rewards"].append(r)
-            if goal_step < 2:
-                dns = 1
-            else:
-                dns = 0
-            data["dones"].append(dns)
-            data["traj_index"].append([traj_index, j])
-            data["iscoll"].append(False)
-            data["image"].append(rectify_and_resize(bytes2im(images[j]), (48, 64, 3), False))
-            data["next_image"].append(rectify_and_resize(bytes2im(images[j+1]), (48, 64, 3), False))
-
-        actions = pos2actions(list(points[j:end+1]), list(rotations[j:end+1]))
-        for l in range(len(actions)):
-            data['actions'].append(np.copy(actions[l]))
-
-    traj_index += 1
-
-    print(traj_index, len(data['trajectory']))
-
-data['colldmean'] = np.mean(distances)
-data['colldstd'] = np.sqrt(np.var(distances))
-data['collamean'] = np.mean(angles)
-data['collastd'] = np.sqrt(np.var(angles))
-        
-print("Total len is", len(data["states"]))
-os.makedirs(save_folder, exist_ok=True)
-
-save_file = os.path.join(save_folder, 'traj_val' + '.pkl')
-with open(save_file, 'wb') as f:
-    pickle.dump(data, f)
+if __name__ == '__main__':
+    app.run(main)

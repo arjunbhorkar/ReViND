@@ -23,7 +23,7 @@ from jaxrl2.networks.values import StateActionEnsemble, StateValue
 from jaxrl2.types import Params, PRNGKey
 from jaxrl2.utils.target_update import soft_target_update
 
-from jaxrl2.dataset_utils import ImageBatch
+from jaxrl2.data.dataset_utils import ImageBatch
 
 
 @functools.partial(jax.jit, static_argnames='critic_reduction')

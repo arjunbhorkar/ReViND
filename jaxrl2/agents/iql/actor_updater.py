@@ -6,7 +6,7 @@ from flax.core.frozen_dict import FrozenDict
 from flax.training.train_state import TrainState
 
 from jaxrl2.types import Params, PRNGKey
-from jaxrl2.dataset_utils import ImageBatch
+from jaxrl2.data.dataset_utils import ImageBatch
 
 
 def update_actor(key: PRNGKey, actor: TrainState, target_critic: TrainState,

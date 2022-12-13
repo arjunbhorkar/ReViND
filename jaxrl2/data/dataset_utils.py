@@ -1,12 +1,13 @@
 import collections
-from matplotlib import pyplot as plt
-import numpy as np
-import random
-from tqdm import tqdm
-import pickle
-import time
 import os
+import pickle
+import random
+import time
+
 import cv2
+import numpy as np
+from matplotlib import pyplot as plt
+from tqdm import tqdm
 
 Batch = collections.namedtuple(
     'Batch',
@@ -128,7 +129,6 @@ class ImageDataset(Dataset):
             for i in range(self.size):
                 indx.append(i)
             indx = np.array(indx)
-            print("indx len is", len(indx))
 
         currobs = []
         nextobs = []
@@ -165,7 +165,7 @@ class ImageDataset(Dataset):
                     nextpt = traj[traji[1] + 1]
 
                     r = -1 + (0.75 *
-                              sunny_detector(self.image_observations[i]))
+                              grass_detector(self.image_observations[i]))
                     currpolar = euc2polar(currpt, goalpt, rot)
                     nextpolar = euc2polar(nextpt, goalpt, nextrot)
 
@@ -182,24 +182,6 @@ class ImageDataset(Dataset):
                 next_observations=np.array(nextobs),
                 next_image_observations=self.next_image_observations[indx])
         else:
-            if saveimg:
-                for i in indx:
-                    bval = round(self.brightreward[i], 3)
-                    dval = round(self.distreward[i], 3)
-                    rval = round(self.rewards[i], 3)
-                    plt.clf()
-                    # plt.text(-3.5, -3.5, currname, c='black')
-                    plt.text(
-                        -1.5,
-                        -1.5,
-                        f"reward {rval} dist component {dval}, brightness component {bval}",
-                        c='green')
-                    plt.imshow(self.image_observations[i])
-                    name = f'traj_im{i}.png'
-                    os.makedirs('/home/anonuser/datacaps', exist_ok=True) ## TODO: change this
-                    plt.savefig(
-                        os.path.join('/home/anonuser/datacaps', name)) ## TODO: change this
-
             return ImageBatch(
                 observations=self.observations[indx],
                 image_observations=self.image_observations[indx],
@@ -214,10 +196,8 @@ class ImageDataset(Dataset):
 def transform_action(actions):
     if len(actions[0]) == 10:
         return actions
-    print(f'Prev action shape {len(actions)}, {len(actions[0])}')
     for i in range(len(actions)):
         actions[i] = np.delete(actions[i], [2, 5, 8, 11, 14])
-    print(f'New action shape {len(actions)}, {len(actions[0])}')
     return actions
 
 
@@ -245,39 +225,24 @@ class ReconImageDataset(ImageDataset):
         dataset['image_observations'] = trajectories["image"]
         dataset['next_image_observations'] = trajectories["next_image"]
         dataset['actions'] = transform_action(trajectories["actions"])
-
         dataset['terminals'] = trajectories["dones"]
         dataset['rewards'] = []
 
-        self.distreward = []
-        self.brightreward = []
-
         for val in range(len(dataset['terminals'])):
             if dataset['terminals'][val] == 1:
-                self.distreward.append(-1)
-                self.brightreward.append(
-                    (0.5 * grass_detector(trajectories["image"][val])))
-
                 dataset['rewards'].append(0)
             else:
-                self.distreward.append(-1)
-                self.brightreward.append(
-                    (0.5 * grass_detector(trajectories["image"][val])))
-
                 r = -1 + (0.75 * grass_detector(trajectories["image"][val]))
                 dataset['rewards'].append(r)
 
         if isher:
             self.iscoll = trajectories["iscoll"]
             self.traj_index = trajectories["traj_index"]
-
             self.meana = trajectories['collamean']
             self.meand = trajectories['colldmean']
             self.stda = trajectories['collastd']
             self.stdd = trajectories['colldstd']
             self.trajs = trajectories['trajectory']
-
-        print(len(trajectories['rewards']))
 
         for key in dataset.keys():
             dataset[key] = np.array(dataset[key])
@@ -300,7 +265,6 @@ class ReconImageDataset(ImageDataset):
         self.dones_float = dones_float
         self.next_observations = dataset['next_observations']
         self.size = len(dataset['observations'])
-
         self.image_observations = dataset['image_observations']
         self.next_image_observations = dataset['next_image_observations']
 

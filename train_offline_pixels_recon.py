@@ -1,16 +1,17 @@
 #! /usr/bin/env python
-import numpy as np
-from os.path import isfile, join
-from evaluation_recon import evaluate
-from jaxrl2.dataset_utils import ReconImageDataset
-from jaxrl2.agents import PixelIQLLearner
 import os
+
+import numpy as np
 import tensorflow as tf
 import tqdm
 from absl import app, flags
 from flax.metrics.tensorboard import SummaryWriter
-from ml_collections import config_flags
 from flax.training import checkpoints
+from ml_collections import config_flags
+
+from jaxrl2.agents import PixelIQLLearner
+from jaxrl2.data.dataset_utils import ReconImageDataset
+from jaxrl2.evaluation_recon import evaluate
 
 tf.config.experimental.set_visible_devices([], "GPU")
 
@@ -23,7 +24,7 @@ flags.DEFINE_integer('eval_episodes', 10,
                      'Number of episodes used for evaluation.')
 flags.DEFINE_integer('log_interval', 300, 'Logging interval.')
 flags.DEFINE_integer('eval_interval', 15000, 'Eval interval.')
-flags.DEFINE_integer('batch_size', 512, 'Mini batch size.')
+flags.DEFINE_integer('batch_size', 1, 'Mini batch size.')
 flags.DEFINE_integer('max_steps', int(2000000), 'Number of training steps.')
 flags.DEFINE_boolean('tqdm', True, 'Use tqdm progress bar.')
 config_flags.DEFINE_config_file(
@@ -40,28 +41,25 @@ def main(_):
 
     images_file_path = f'./{FLAGS.exp_dir}/recon_graphs_waypoints/' + name + '/'
 
-    new_dir = "/nfs/kun2/users/anon/recon_dataset/recon_datavis/pklher3/traj_train.pkl"
+    new_dir = "./datasets/train.pkl"
     print("Using training dataset: ", new_dir)
 
-    dataset1 = ReconImageDataset(new_dir, isher=True)
+    dataset = ReconImageDataset(new_dir, isher=True)
 
-    samp_a = dataset1.sample(1, isher=True)
-    print(samp_a.observations[0][np.newaxis].shape)
-    print(samp_a.image_observations[0][np.newaxis].shape)
-    print(samp_a.actions[0][np.newaxis].shape)
+    sample = dataset.sample(1, isher=True)
 
     kwargs = dict(FLAGS.config)
     if kwargs.pop('cosine_decay', False):
         kwargs['decay_steps'] = FLAGS.max_steps
-    agent = PixelIQLLearner(FLAGS.seed, samp_a.observations[0][np.newaxis],
-                            samp_a.image_observations[0][np.newaxis],
-                            samp_a.actions[0][np.newaxis], **kwargs)
+    agent = PixelIQLLearner(FLAGS.seed, sample.observations[0][np.newaxis],
+                            sample.image_observations[0][np.newaxis],
+                            sample.actions[0][np.newaxis], **kwargs)
 
     for i in tqdm.tqdm(range(1, FLAGS.max_steps + 1),
                        smoothing=0.1,
                        disable=not FLAGS.tqdm):
 
-        batch = dataset1.sample(FLAGS.batch_size, saveimg=False, isher=True)
+        batch = dataset.sample(FLAGS.batch_size, saveimg=False, isher=True)
         update_info = agent.update(batch)
 
         if i % FLAGS.log_interval == 0:
@@ -73,7 +71,7 @@ def main(_):
             summary_writer.flush()
 
         if i % FLAGS.eval_interval == 0 or i == 100 or i == 20000:
-            eval_batch = dataset1.sample(7000, isher=True)
+            eval_batch = dataset.sample(10, isher=True)
 
             eval_info = evaluate(agent, eval_batch,
                                  images_file_path + f'step{i}', True)
