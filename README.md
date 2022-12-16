@@ -1,6 +1,7 @@
-# ReViND (Submission for CORL 2022)
+# ReViND: Offline Reinforcement Learning for Visual Navigation
 
-This is the code submission for the corresponding CoRL 2022 submission 'ReViND'.
+This repository contains code used in ReViND: Offline Reinforcement Learning for Visual Navigation by Arjun Bhorkar, Dhruv Shah, Hrish Leen, Ilya Kostrikov, Nick Rhinehart, and Sergey Levine.
+
 
 ## Installation
 
